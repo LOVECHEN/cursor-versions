@@ -44,7 +44,7 @@ function download_files() {
     local buildid="$2"
     local valid_files=()
     
-    echo "Downloading files for version $version..."
+    echo "Downloading files for version $version..." >&2  # 重定向到stderr
     
     # 定义下载函数
     download_and_check() {
@@ -52,20 +52,20 @@ function download_files() {
         local output="$2"
         local min_size=10485760  # 10MB in bytes
 
-        echo "Downloading $output..."
+        echo "Downloading $output..." >&2  # 重定向到stderr
         if curl -L -o "$output" "$url" && [ -f "$output" ]; then
             local size=$(stat -f%z "$output" 2>/dev/null || stat -c%s "$output")
             if [ "$size" -ge "$min_size" ]; then
                 valid_files+=("$output")
-                echo "Successfully downloaded $output ($(($size/1024/1024))MB)"
+                echo "Successfully downloaded $output ($(($size/1024/1024))MB)" >&2  # 重定向到stderr
                 return 0
             else
-                echo "File too small: $output ($(($size/1024/1024))MB)"
+                echo "File too small: $output ($(($size/1024/1024))MB)" >&2  # 重定向到stderr
                 rm -f "$output"
                 return 1
             fi
         else
-            echo "Failed to download $output"
+            echo "Failed to download $output" >&2  # 重定向到stderr
             rm -f "$output"
             return 1
         fi
@@ -109,8 +109,10 @@ function download_files() {
         "https://download.todesktop.com/230313mzl4w4u92/cursor-$version-build-$buildid-x86_64.AppImage" \
         "$downloads_path/cursor-$version-build-$buildid-x86_64.AppImage"
     
-    # 返回有效文件列表
-    echo "${valid_files[@]}"
+    # 只返回有效文件路径
+    for file in "${valid_files[@]}"; do
+        echo "$file"
+    done
 }
 
 function create_release() {
