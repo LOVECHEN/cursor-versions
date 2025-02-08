@@ -41,6 +41,9 @@ jobs:
 
           echo "Processing version $version (Build $buildid)"
           
+          # 清理下载目录
+          rm -rf downloads/*
+          
           # Windows x64
           curl -L -o "downloads/Cursor Setup $version - Build $buildid-x64.exe" \
             "https://download.todesktop.com/230313mzl4w4u92/Cursor%20Setup%20$version%20-%20Build%20$buildid-x64.exe"
@@ -63,24 +66,18 @@ jobs:
           curl -L -o "downloads/cursor-$version-build-$buildid-x86_64.AppImage" \
             "https://download.todesktop.com/230313mzl4w4u92/cursor-$version-build-$buildid-x86_64.AppImage"
 
-          echo "TAG_NAME=Cursor $version" >> $GITHUB_ENV
-          echo "RELEASE_DATE=$date" >> $GITHUB_ENV
-          echo "BUILD_ID=$buildid" >> $GITHUB_ENV
-          break  # 只处理最新版本
-        done < cursor_versions.txt
+          # 发布这个版本
+          gh release create "Cursor $version" \
+            --title "Cursor $version ($date)" \
+            --notes "Build ID: $buildid
+Release Date: $date" \
+            downloads/*
 
-    - name: Publish to GitHub Releases
-      uses: softprops/action-gh-release@v1
+          echo "Published version $version"
+          
+        done < cursor_versions.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ env.TAG_NAME }}
-        name: "${{ env.TAG_NAME }} (${{ env.RELEASE_DATE }})"
-        body: |
-          Build ID: ${{ env.BUILD_ID }}
-          Release Date: ${{ env.RELEASE_DATE }}
-        files: |
-          downloads/*
 
     - name: Send failure notification
       if: failure()
