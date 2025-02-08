@@ -110,5 +110,6 @@ Release Date: $date" \
             rm -rf downloads/*
             
           done < <(tail -r cursor_versions.txt)
+          
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
