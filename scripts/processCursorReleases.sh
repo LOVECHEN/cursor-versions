@@ -91,7 +91,14 @@ function main() {
     setup_dirs
     download_version_info
     
+    # 使用 IFS=, 来正确分割 CSV 格式
     while IFS=, read -r date version buildid; do
+        # 检查是否成功读取所有字段
+        if [[ -z "$date" ]] || [[ -z "$version" ]] || [[ -z "$buildid" ]]; then
+            echo "Warning: Invalid line format: date='$date' version='$version' buildid='$buildid'"
+            continue
+        fi
+
         # 检查版本范围
         if [ ! -z "$start_version" ] && [ "$version" \< "$start_version" ]; then
             echo "Skipping version $version (before start version)"
