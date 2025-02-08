@@ -1,6 +1,7 @@
 name: Archive Cursor Releases
 
 on:
+  repository_dispatch:
   workflow_dispatch:
     inputs:
       force_update:
@@ -15,17 +16,18 @@ on:
         required: false
 
 jobs:
-  archive:
+  run:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
-    - name: Download version info
-      run: |
-        # 下载版本信息并格式化（添加换行）
-        curl -s https://res.1073studio.com/cursor_versions.txt | sed 's/ /\n/g' > cursor_versions.txt
-        
-    - name: Download Files
+    - name: Download Version Info
       run: |
         mkdir -p downloads
+        curl -s https://res.1073studio.com/cursor_versions.txt | sort -n > cursor_versions.txt
+
+    - name: Process Versions and Download Files
+      run: |
         while IFS=, read -r date version buildid; do
           # 检查版本范围
           if [ ! -z "${{ github.event.inputs.start_version }}" ] && [ "$version" \< "${{ github.event.inputs.start_version }}" ]; then
@@ -37,40 +39,6 @@ jobs:
             continue
           fi
 
-          # 检查 release 是否已存在
-          if gh release view "Cursor $version" &>/dev/null; then
-            echo "Release Cursor $version already exists, checking files..."
-            
-            # 创建临时目录用于比较
-            mkdir -p temp
-            cd temp
-            
-            # 下载现有 release 的文件列表和大小信息
-            gh release view "Cursor $version" --json assets -q '.assets[] | .name + "," + (.size|tostring)' > existing_files.txt
-            
-            # 下载新文件并比较大小
-            need_update=false
-            
-            # Windows x64
-            curl -L -o "Cursor Setup $version - Build $buildid-x64.exe" \
-              "https://download.todesktop.com/230313mzl4w4u92/Cursor%20Setup%20$version%20-%20Build%20$buildid-x64.exe"
-            new_size=$(stat -f%z "Cursor Setup $version - Build $buildid-x64.exe")
-            if ! grep -q "Cursor Setup $version - Build $buildid-x64.exe,$new_size" existing_files.txt; then
-              need_update=true
-            fi
-            
-            # 如果文件大小相同，跳过此版本
-            if [ "$need_update" = false ]; then
-              echo "Files are identical, skipping version $version"
-              cd ..
-              rm -rf temp
-              continue
-            fi
-            
-            cd ..
-            rm -rf temp
-          fi
-          
           echo "Processing version $version (Build $buildid)"
           
           # Windows x64
@@ -94,21 +62,27 @@ jobs:
           # Linux
           curl -L -o "downloads/cursor-$version-build-$buildid-x86_64.AppImage" \
             "https://download.todesktop.com/230313mzl4w4u92/cursor-$version-build-$buildid-x86_64.AppImage"
-          
-          # Create Release
-          gh release create "Cursor $version" \
-            --title "Cursor $version ($date)" \
-            --notes "Build ID: $buildid
-Release Date: $date" \
-            "downloads/Cursor Setup $version - Build $buildid-x64.exe" \
-            "downloads/Cursor Setup $version - Build $buildid-arm64.exe" \
-            "downloads/Cursor Mac Installer ($buildid).zip" \
-            "downloads/Cursor $version - Build $buildid-arm64.dmg" \
-            "downloads/Cursor $version - Build $buildid-x64.dmg" \
-            "downloads/cursor-$version-build-$buildid-x86_64.AppImage"
-          
-          rm -rf downloads/*
-          
-        done < <(tail -r cursor_versions.txt)
+
+          echo "TAG_NAME=Cursor $version" >> $GITHUB_ENV
+          echo "RELEASE_DATE=$date" >> $GITHUB_ENV
+          echo "BUILD_ID=$buildid" >> $GITHUB_ENV
+          break  # 只处理最新版本
+        done < cursor_versions.txt
+
+    - name: Publish to GitHub Releases
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        name: "${{ env.TAG_NAME }} (${{ env.RELEASE_DATE }})"
+        body: |
+          Build ID: ${{ env.BUILD_ID }}
+          Release Date: ${{ env.RELEASE_DATE }}
+        files: |
+          downloads/*
+
+    - name: Send failure notification
+      if: failure()
+      run: |
+        echo "Workflow Archive Cursor Releases failed."
