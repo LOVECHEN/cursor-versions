@@ -17,68 +17,12 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
     steps:
-    - name: Download Version Info
-      run: |
-        mkdir -p downloads
-        curl -s https://res.1073studio.com/cursor_versions.txt | sort -n > cursor_versions.txt
+      - uses: actions/checkout@v2
+      
+      - name: Process Cursor Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash -x ./scripts/processCursorReleases.sh "${{ github.event.inputs.start_version }}" "${{ github.event.inputs.end_version }}" "${{ github.event.inputs.force_update }}"
 
-    - name: Process Versions and Download Files
-      run: |
-        while IFS=, read -r date version buildid; do
-          # 检查版本范围
-          if [ ! -z "${{ github.event.inputs.start_version }}" ] && [ "$version" \< "${{ github.event.inputs.start_version }}" ]; then
-            echo "Skipping version $version (before start version)"
-            continue
-          fi
-          if [ ! -z "${{ github.event.inputs.end_version }}" ] && [ "$version" \> "${{ github.event.inputs.end_version }}" ]; then
-            echo "Skipping version $version (after end version)"
-            continue
-          fi
 
-          echo "Processing version $version (Build $buildid)"
-          
-          # 清理下载目录
-          rm -rf downloads/*
-          
-          # Windows x64
-          curl -L -o "downloads/Cursor Setup $version - Build $buildid-x64.exe" \
-            "https://download.todesktop.com/230313mzl4w4u92/Cursor%20Setup%20$version%20-%20Build%20$buildid-x64.exe"
-          
-          # Windows ARM64
-          curl -L -o "downloads/Cursor Setup $version - Build $buildid-arm64.exe" \
-            "https://download.todesktop.com/230313mzl4w4u92/Cursor%20Setup%20$version%20-%20Build%20$buildid-arm64.exe"
-          
-          # Mac Universal
-          curl -L -o "downloads/Cursor Mac Installer ($buildid).zip" \
-            "https://download.todesktop.com/230313mzl4w4u92/Cursor%20Mac%20Installer%20($buildid).zip"
-          
-          # Mac ARM64 & x64
-          curl -L -o "downloads/Cursor $version - Build $buildid-arm64.dmg" \
-            "https://download.todesktop.com/230313mzl4w4u92/Cursor%20$version%20-%20Build%20$buildid-arm64.dmg"
-          curl -L -o "downloads/Cursor $version - Build $buildid-x64.dmg" \
-            "https://download.todesktop.com/230313mzl4w4u92/Cursor%20$version%20-%20Build%20$buildid-x64.dmg"
-          
-          # Linux
-          curl -L -o "downloads/cursor-$version-build-$buildid-x86_64.AppImage" \
-            "https://download.todesktop.com/230313mzl4w4u92/cursor-$version-build-$buildid-x86_64.AppImage"
-
-          # 发布这个版本
-          gh release create "Cursor $version" \
-            --title "Cursor $version ($date)" \
-            --notes "Build ID: $buildid
-Release Date: $date" \
-            downloads/*
-
-          echo "Published version $version"
-          
-        done < cursor_versions.txt
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Send failure notification
-      if: failure()
-      run: |
-        echo "Workflow Archive Cursor Releases failed."
