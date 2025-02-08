@@ -28,6 +28,15 @@ function download_version_info() {
         >&2 echo "Failed to download version info"
         clean_data 1
     fi
+    
+    # 验证文件内容
+    if [ ! -s cursor_versions.txt ]; then
+        >&2 echo "Version info file is empty"
+        clean_data 1
+    fi
+    
+    echo "Version information downloaded successfully:"
+    cat cursor_versions.txt
 }
 
 function download_files() {
