@@ -107,7 +107,6 @@ Release Date: $date" \
               "downloads/Cursor $version - Build $buildid-x64.dmg" \
               "downloads/cursor-$version-build-$buildid-x86_64.AppImage"
             
-            # Clean up downloads for this version
             rm -rf downloads/*
             
           done < <(tail -r cursor_versions.txt)  # 从最旧版本开始处理
