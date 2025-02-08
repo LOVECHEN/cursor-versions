@@ -1,7 +1,6 @@
 name: Archive Cursor Releases
 
 on:
-  repository_dispatch:
   workflow_dispatch:
     inputs:
       force_update:
