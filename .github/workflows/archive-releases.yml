@@ -110,6 +110,6 @@ Release Date: $date" \
             # Clean up downloads for this version
             rm -rf downloads/*
             
-          done < <(tac cursor_versions.txt)  # 从最旧版本开始处理
+          done < <(tail -r cursor_versions.txt)  # 从最旧版本开始处理
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
